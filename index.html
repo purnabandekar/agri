@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SpaceGuard | Data Integrity</title>
+<script src="https://cdn.jsdelivr.net/npm/web3@4.16.0/dist/web3.min.js"></script>
+<style>
+:root{--bg:#07111f;--panel:#101e32;--panel2:#142640;--line:#263c59;--text:#edf4ff;--muted:#9cb0ca;--cyan:#61e4ff;--violet:#a99bff;--green:#4ee0a0;--red:#ff7185}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top right,#18294a 0,transparent 45%),var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1120px;margin:auto;padding:32px 20px 60px}.top{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:28px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px}.logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#63e6ff,#8b7bff);color:#07111f;font-size:22px;font-weight:900}
+h1{font-size:24px;margin:0;letter-spacing:-.5px} .sub{color:var(--muted);font-size:13px;margin-top:3px}
+button{border:0;border-radius:10px;padding:11px 15px;font-weight:750;cursor:pointer;background:linear-gradient(100deg,var(--cyan),var(--violet));color:#07111f}
+button.secondary{background:#1c304a;color:var(--text);border:1px solid var(--line)}button:disabled{opacity:.5;cursor:not-allowed}
+.status{font-size:13px;color:var(--muted);margin-top:10px}.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:#0d1a2b;border-radius:999px;padding:8px 12px;color:var(--muted);font-size:12px}
+.dot{width:7px;height:7px;border-radius:50%;background:#64748b}.dot.ok{background:var(--green)}
+.hero{padding:25px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(120deg,rgba(40,72,112,.5),rgba(22,32,61,.55));margin-bottom:18px}
+.eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--cyan);font-weight:800}.hero h2{font-size:30px;line-height:1.15;max-width:600px;margin:10px 0}.hero p{color:var(--muted);max-width:650px;margin:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}.stat,.card{background:rgba(16,30,50,.92);border:1px solid var(--line);border-radius:16px;padding:18px}.stat small{display:block;color:var(--muted);font-size:12px}.stat strong{display:block;font-size:24px;margin-top:5px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card h3{margin:0 0 4px;font-size:18px}.hint{color:var(--muted);font-size:13px;margin:0 0 18px}
+label{display:block;font-size:12px;color:#bfd0e7;margin:13px 0 6px}input{width:100%;border:1px solid var(--line);background:#091626;color:var(--text);border-radius:10px;padding:12px;font:inherit;outline:none}input:focus{border-color:var(--cyan)}
+.filebox{padding:13px;border:1px dashed #47617e;border-radius:12px;background:#0b192a}.filebox input{padding:8px;border:0;background:transparent}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.row button{margin-top:12px}.result{margin-top:14px;padding:12px;border-radius:10px;background:#0a1727;border:1px solid var(--line);font-size:13px;overflow-wrap:anywhere;white-space:pre-wrap}.result.good{border-color:#287c61;color:var(--green)}.result.bad{border-color:#84394b;color:var(--red)}
+.hash{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;color:#b8c9e2;overflow-wrap:anywhere}
+.records{margin-top:16px}.record{padding:13px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:60px 1fr;gap:10px}.record .id{color:var(--cyan);font-weight:800}.record b{display:block}.record small{color:var(--muted)}
+footer{color:var(--muted);font-size:12px;margin-top:22px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.hero h2{font-size:25px}}
+</style>
+</head>
+<body><main>
+<header class="top">
+  <div class="brand"><div class="logo">S</div><div><h1>SpaceGuard</h1><div class="sub">Blockchain-based space data integrity</div></div></div>
+  <div class="row"><span class="pill"><span class="dot" id="walletDot"></span><span id="walletStatus">Wallet not connected</span></span><button id="connectBtn">Connect MetaMask</button></div>
+</header>
+<section class="hero"><div class="eyebrow">Integrity layer / 01</div><h2>Trust the fingerprint.<br>Verify every dataset.</h2><p>Register a dataset's SHA-256 fingerprint on your local Ethereum blockchain, then verify a file later to detect changes in its contents.</p></section>
+<section class="stats">
+  <div class="stat"><small>Network</small><strong id="networkStat">Not connected</strong></div>
+  <div class="stat"><small>Registered datasets</small><strong id="countStat">—</strong></div>
+  <div class="stat"><small>Hash algorithm</small><strong>SHA-256</strong></div>
+</section>
+<section class="grid">
+  <div class="card"><h3>01 / Register dataset</h3><p class="hint">Choose a file. Its fingerprint is calculated locally in your browser.</p>
+    <label for="regName">Dataset name</label><input id="regName" placeholder="e.g. Mumbai_Satellite_01" />
+    <label for="regOwner">Owner / organisation</label><input id="regOwner" placeholder="e.g. Space Research Lab" />
+    <label for="regFile">Dataset file</label><div class="filebox"><input id="regFile" type="file" /></div>
+    <div id="regHash" class="result">Select a file to calculate its SHA-256 hash.</div>
+    <button id="registerBtn" disabled>Register on blockchain</button><div id="regResult" class="result" style="display:none"></div>
+  </div>
+  <div class="card"><h3>02 / Verify dataset</h3><p class="hint">Select the registered dataset ID and the file you want to check.</p>
+    <label for="verifyId">Dataset ID</label><input id="verifyId" type="number" min="1" placeholder="e.g. 1" />
+    <label for="verifyFile">File to verify</label><div class="filebox"><input id="verifyFile" type="file" /></div>
+    <div id="verifyHash" class="result">Select a file to calculate its SHA-256 hash.</div>
+    <button id="verifyBtn" disabled>Verify integrity</button><div id="verifyResult" class="result" style="display:none"></div>
+  </div>
+</section>
+<section class="card records"><h3>03 / On-chain records</h3><p class="hint">Look up metadata stored by the smart contract.</p><div class="row"><input id="lookupId" type="number" min="1" placeholder="Dataset ID" style="max-width:220px"/><button class="secondary" id="lookupBtn">Fetch record</button><button class="secondary" id="refreshBtn">Refresh count</button></div><div id="lookupResult" class="result">Connect your wallet and fetch a record by ID.</div></section>
+<footer>Demo runs on your local Ganache blockchain. File contents are hashed in the browser; the file itself is not uploaded to the blockchain. A matching hash confirms byte-for-byte integrity against the registered fingerprint, not the scientific authenticity of the source data.</footer>
+</main>
+<script>
+/* SET THIS to the deployed SpaceDataIntegrity contract address from Remix. */
+const CONTRACT_ADDRESS = "0xfb4fe1Ef19F8fBDC5827fE095a36b72C661775aC";
+const ABI = [
+ {"inputs":[{"internalType":"string","name":"_name","type":"string"},{"internalType":"string","name":"_hash","type":"string"},{"internalType":"string","name":"_owner","type":"string"}],"name":"registerDataset","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
+ {"inputs":[{"internalType":"uint256","name":"_id","type":"uint256"}],"name":"getDataset","outputs":[{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"hash","type":"string"},{"internalType":"string","name":"owner","type":"string"},{"internalType":"uint256","name":"timestamp","type":"uint256"},{"internalType":"address","name":"registeredBy","type":"address"}],"stateMutability":"view","type":"function"},
+ {"inputs":[{"internalType":"uint256","name":"_id","type":"uint256"},{"internalType":"string","name":"_hash","type":"string"}],"name":"verifyDataset","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+ {"inputs":[],"name":"datasetCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}
+];
+let web3, contract, account;
+const $ = id => document.getElementById(id);
+function show(id,msg,kind=""){const el=$(id);el.textContent=msg;el.className="result "+kind;el.style.display="block";}
+async function hashFile(file){const buf=await file.arrayBuffer();const digest=await crypto.subtle.digest("SHA-256",buf);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,"0")).join("");}
+async function connect(){
+ if(!window.ethereum){alert("MetaMask was not detected. Install/unlock MetaMask first.");return;}
+ if(CONTRACT_ADDRESS.includes("PASTE_")){alert("First paste your deployed contract address into index.html, save it, and reload.");return;}
+ try{
+  const accounts=await window.ethereum.request({method:"eth_requestAccounts"});account=accounts[0];web3=new Web3(window.ethereum);contract=new web3.eth.Contract(ABI,CONTRACT_ADDRESS);
+  const net=await web3.eth.getChainId();$("walletStatus").textContent=account.slice(0,6)+"…"+account.slice(-4);$("walletDot").classList.add("ok");$("networkStat").textContent="Chain "+net;
+  $("connectBtn").textContent="Connected";await refreshCount();
+ }catch(e){alert("Connection failed: "+(e.message||e));}
+}
+async function refreshCount(){if(!contract)return;try{$("countStat").textContent=(await contract.methods.datasetCount().call()).toString();}catch(e){$("countStat").textContent="Error";}}
+$("connectBtn").onclick=connect;
+$("regFile").onchange=async()=>{const f=$("regFile").files[0];if(!f){$("registerBtn").disabled=true;return;}try{const h=await hashFile(f);$("regHash").innerHTML="SHA-256<br><div class='hash'></div>";$("regHash").querySelector(".hash").textContent=h;$("registerBtn").dataset.hash=h;$("registerBtn").disabled=false;}catch(e){show("regHash","Could not hash file: "+e.message,"bad");}};
+$("registerBtn").onclick=async()=>{if(!contract){await connect();if(!contract)return;}const name=$("regName").value.trim(),owner=$("regOwner").value.trim(),hash=$("registerBtn").dataset.hash;if(!name||!owner||!hash){show("regResult","Enter a dataset name and owner, then select a file.","bad");return;}try{$("registerBtn").disabled=true;show("regResult","Waiting for MetaMask confirmation…");const receipt=await contract.methods.registerDataset(name,hash,owner).send({from:account});show("regResult","Registration successful!\nTransaction: "+receipt.transactionHash,"good");await refreshCount();}catch(e){show("regResult","Registration failed: "+(e.message||e),"bad");}finally{$("registerBtn").disabled=false;}};
+$("verifyFile").onchange=async()=>{const f=$("verifyFile").files[0];if(!f){$("verifyBtn").disabled=true;return;}try{const h=await hashFile(f);$("verifyHash").innerHTML="SHA-256<br><div class='hash'></div>";$("verifyHash").querySelector(".hash").textContent=h;$("verifyBtn").dataset.hash=h;$("verifyBtn").disabled=false;}catch(e){show("verifyHash","Could not hash file: "+e.message,"bad");}};
+$("verifyBtn").onclick=async()=>{if(!contract){await connect();if(!contract)return;}const id=$("verifyId").value,hash=$("verifyBtn").dataset.hash;if(!id||Number(id)<1||!hash){show("verifyResult","Enter a valid dataset ID and choose a file.","bad");return;}try{const match=await contract.methods.verifyDataset(id,hash).call();if(match)show("verifyResult","✓ AUTHENTIC FINGERPRINT MATCH\nThe file matches the hash registered for dataset #"+id+".","good");else show("verifyResult","⚠ HASH MISMATCH\nThe file does not match the registered fingerprint for dataset #"+id+".","bad");}catch(e){show("verifyResult","Verification failed: "+(e.message||e),"bad");}};
+$("lookupBtn").onclick=async()=>{if(!contract){await connect();if(!contract)return;}const id=$("lookupId").value;if(!id||Number(id)<1){show("lookupResult","Enter a valid dataset ID.","bad");return;}try{const d=await contract.methods.getDataset(id).call();const date=new Date(Number(d.timestamp)*1000).toLocaleString();show("lookupResult","Dataset #"+id+"\nName: "+d.name+"\nOwner: "+d.owner+"\nSHA-256: "+d.hash+"\nRegistered: "+date+"\nWallet: "+d.registeredBy,"good");}catch(e){show("lookupResult","Could not fetch record: "+(e.message||e),"bad");}};
+$("refreshBtn").onclick=refreshCount;
+if(window.ethereum){window.ethereum.on?.("accountsChanged",()=>location.reload());window.ethereum.on?.("chainChanged",()=>location.reload());}
+</script></body></html>
